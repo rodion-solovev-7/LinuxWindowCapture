@@ -62,7 +62,8 @@ class WindowCapture:
             self.window = win_or_name
 
     def get_image(self) -> np.ndarray:
-        return get_screen_image(self.window.box)
+        x, y, w, h = self.window.box
+        return get_screen_image((x, y, x + w, y + h))
 
     def __repr__(self) -> str:
         return repr(self.window.box)
