@@ -25,11 +25,18 @@ def draw_text(
     cv2.putText(frame, text, point, font, font_scale, color, thickness, cv2.LINE_AA)
 
 
+class BoundingBox(typing.NamedTuple):
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
+
 class FpsMeter:
     def __init__(self):
         self.times = deque()
 
-    def tick(self, ) -> None:
+    def tick(self) -> None:
         now = time.perf_counter()
 
         self.times.append(now)
@@ -47,34 +54,34 @@ class FpsMeter:
         return float('nan')
 
 
-def get_screen_image(bbox: tuple[int, ...] = None) -> np.ndarray:
+def get_screen_image(bbox: BoundingBox = None) -> np.ndarray:
     # noinspection PyTypeChecker
     image = np.array(ImageGrab.grab(bbox))
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     return image
 
 
-class WindowCapture:
-    def __init__(self, win_or_name: typing.Union[Window, str]):
+# noinspection PyMissingConstructor
+class WindowCapture(cv2.VideoCapture):
+    def __init__(self, win_or_name: typing.Union[str, Window]):
         if isinstance(win_or_name, str):
-            self.window = pyautogui.getWindowsWithTitle(win_or_name)[0]
-        else:
-            self.window = win_or_name
+            win_or_name = pyautogui.getWindowsWithTitle(win_or_name)[0]
+        self.window = win_or_name
 
-    def get_image(self) -> np.ndarray:
+    def read(self, _=None) -> tuple[bool, np.ndarray]:
         x, y, w, h = self.window.box
-        return get_screen_image((x, y, x + w, y + h))
+        return True, get_screen_image(BoundingBox(x, y, x + w, y + h))
 
     def __repr__(self) -> str:
         return repr(self.window.box)
 
 
-def main():
+def process_capture() -> None:
     cap = WindowCapture(pyautogui.getActiveWindow())
     fps_meter = FpsMeter()
 
     while True:
-        image = cap.get_image()
+        has_read, image = cap.read()
 
         fps_meter.tick()
         fps_text = f'FPS={fps_meter.fps:02.2f} DELAY={fps_meter.delay:.2f}'
@@ -88,14 +95,12 @@ def main():
             raise KeyboardInterrupt()
 
 
-def main2():
-    window = pyautogui.getActiveWindow()
-    print(repr(window.box))
-    print(*window.box)
+def main():
+    try:
+        process_capture()
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
+    main()
